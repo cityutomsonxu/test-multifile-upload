@@ -43,10 +43,17 @@ public class FileUploadController : Controller
             Directory.CreateDirectory(uploadsDir);
 
         // Use a unique file name to avoid collisions while preserving the original name for display.
+        // Strip any directory components from the original file name before embedding it.
         var uniqueId = Guid.NewGuid().ToString("N");
-        var safeOriginal = Path.GetFileNameWithoutExtension(file.FileName);
+        var safeOriginal = Path.GetFileNameWithoutExtension(Path.GetFileName(file.FileName));
         var storedName = $"{uniqueId}_{safeOriginal}{ext}";
         var filePath = Path.Combine(uploadsDir, storedName);
+
+        // Canonical path check: ensure the resolved path is inside the uploads directory.
+        var canonicalUploads = Path.GetFullPath(uploadsDir);
+        var canonicalFile   = Path.GetFullPath(filePath);
+        if (!canonicalFile.StartsWith(canonicalUploads + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Invalid file path." });
 
         await using var stream = new FileStream(filePath, FileMode.Create);
         await file.CopyToAsync(stream);
@@ -71,6 +78,13 @@ public class FileUploadController : Controller
             return BadRequest(new { error = "Invalid file name." });
 
         var filePath = Path.Combine(UploadsFolder, fileName);
+
+        // Canonical path check: ensure the resolved path is inside the uploads directory.
+        var canonicalUploads = Path.GetFullPath(UploadsFolder);
+        var canonicalFile   = Path.GetFullPath(filePath);
+        if (!canonicalFile.StartsWith(canonicalUploads + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new { error = "Invalid file name." });
+
         if (!System.IO.File.Exists(filePath))
             return NotFound(new { error = "File not found." });
 
@@ -88,6 +102,13 @@ public class FileUploadController : Controller
             return BadRequest();
 
         var filePath = Path.Combine(UploadsFolder, fileName);
+
+        // Canonical path check: ensure the resolved path is inside the uploads directory.
+        var canonicalUploads = Path.GetFullPath(UploadsFolder);
+        var canonicalFile   = Path.GetFullPath(filePath);
+        if (!canonicalFile.StartsWith(canonicalUploads + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            return BadRequest();
+
         if (!System.IO.File.Exists(filePath))
             return NotFound();
 
